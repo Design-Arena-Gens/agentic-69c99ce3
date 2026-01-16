@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TENANT
+  LANDLORD
+  ADMIN
+  VERIFIED_AGENT
+}
+
+enum City {
+  MOGADISHU
+  HARGEISA
+  GAROWE
+  BOSASO
+  KISMAYO
+  BAIDOA
+  BERBERA
+}
+
+enum MobileMoneyProvider {
+  EVC_PLUS
+  E_DAHAB
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id          String      @id @default(cuid())
+  email       String      @unique
+  password    String
+  fullName    String
+  phone       String?
+  role        Role        @default(TENANT)
+  properties  Property[]  @relation("OwnerProperties")
+  tenancies   Property[]  @relation("TenantProperties")
+  transactions Transaction[]
+  inspections MonthlyInspection[] @relation("InspectorInspections")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Property {
+  id              String               @id @default(cuid())
+  title           String
+  description     String
+  city            City
+  district        String
+  monthlyPriceUsd Decimal              @db.Decimal(10, 2)
+  latitude        Decimal?             @db.Decimal(9, 6)
+  longitude       Decimal?             @db.Decimal(9, 6)
+  isVerified      Boolean              @default(false)
+  amenities       String[]
+  photos          String[]
+  owner           User                 @relation("OwnerProperties", fields: [ownerId], references: [id])
+  ownerId         String
+  tenants         User[]               @relation("TenantProperties")
+  transactions    Transaction[]
+  inspections     MonthlyInspection[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model Transaction {
+  id              String               @id @default(cuid())
+  property        Property             @relation(fields: [propertyId], references: [id])
+  propertyId      String
+  tenant          User                 @relation(fields: [tenantId], references: [id])
+  tenantId        String
+  amountUsd       Decimal              @db.Decimal(10, 2)
+  currency        String               @default("USD")
+  provider        MobileMoneyProvider
+  transactionId   String
+  status          TransactionStatus    @default(PENDING)
+  paidAt          DateTime?
+  metadata        Json?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model MonthlyInspection {
+  id              String   @id @default(cuid())
+  property        Property @relation(fields: [propertyId], references: [id])
+  propertyId      String
+  inspector       User     @relation("InspectorInspections", fields: [inspectorId], references: [id])
+  inspectorId     String
+  summary         String
+  photoUrls       String[]
+  inspectedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+}
